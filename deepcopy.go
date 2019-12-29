@@ -16,15 +16,15 @@ type Interface interface {
 	DeepCopy() interface{}
 }
 
-// Iface is an alias to Copy; this exists for backwards compatibility reasons.
-func Iface(iface interface{}) interface{} {
-	return Copy(iface)
+type Options struct {
+	// ReturnPointer determines whether Copy() should return the pointer to the newly copied object or the object itself
+	ReturnPointer bool
 }
 
 // Copy creates a deep copy of whatever is passed to it and returns the copy
 // in an interface{}.  The returned value will need to be asserted to the
 // correct type.
-func Copy(src interface{}) interface{} {
+func Copy(src interface{}, opts Options) interface{} {
 	if src == nil {
 		return nil
 	}
@@ -33,13 +33,17 @@ func Copy(src interface{}) interface{} {
 	original := reflect.ValueOf(src)
 
 	// Make a copy of the same type as the original.
-	cpy := reflect.New(original.Type()).Elem()
+	cpyPtr := reflect.New(original.Type()) //.Elem()
+	cpyEl := cpyPtr.Elem()
 
 	// Recursively copy the original.
-	copyRecursive(original, cpy)
+	copyRecursive(original, cpyEl)
 
 	// Return the copy as an interface.
-	return cpy.Interface()
+	if opts.ReturnPointer {
+		return cpyPtr.Interface()
+	}
+	return cpyEl.Interface()
 }
 
 // copyRecursive does the actual copying of the interface. It currently has
@@ -115,7 +119,7 @@ func copyRecursive(original, cpy reflect.Value) {
 			originalValue := original.MapIndex(key)
 			copyValue := reflect.New(originalValue.Type()).Elem()
 			copyRecursive(originalValue, copyValue)
-			copyKey := Copy(key.Interface())
+			copyKey := Copy(key.Interface(), Options{})
 			cpy.SetMapIndex(reflect.ValueOf(copyKey), copyValue)
 		}
 
